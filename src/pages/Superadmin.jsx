@@ -21,7 +21,7 @@ const SuperAdminPage = () => {
     setLoading(true);
     try {
       const endpoints = { users: '/users', projects: '/projects', donations: '/donations' };
-      const res = await fetch(`http://127.0.0.1:5000${endpoints[activeTab]}`, {
+      const res = await fetch(`https://connect-backend-8x61.onrender.com${endpoints[activeTab]}`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const data = await res.json();
@@ -37,7 +37,7 @@ const SuperAdminPage = () => {
 
   const handleDeleteEvent = async (id) => {
     if (!window.confirm('Delete this event?')) return;
-    await fetch(`http://127.0.0.1:5000/projects/${id}`, {
+    await fetch(`https://connect-backend-8x61.onrender.com/projects/${id}`, {
       method: 'DELETE',
       headers: { 'Authorization': `Bearer ${token}` }
     });
@@ -48,7 +48,7 @@ const SuperAdminPage = () => {
     e.preventDefault();
     setSubmitLoading(true);
     try {
-      await fetch('http://127.0.0.1:5000/projects', {
+      await fetch('https://connect-backend-8x61.onrender.com/projects', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
         body: JSON.stringify(eventForm)

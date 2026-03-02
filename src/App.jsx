@@ -8,7 +8,7 @@ function App() {
   const [loadingProjects, setLoadingProjects] = useState(true);
 
   useEffect(() => {
-    fetch('http://127.0.0.1:5000/projects')
+    fetch('https://connect-backend-8x61.onrender.com/projects')
       .then((res) => res.json())
       .then((data) => {
         setProjects(data);

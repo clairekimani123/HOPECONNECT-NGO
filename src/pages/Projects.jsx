@@ -40,7 +40,7 @@ function ProjectsPage() {
     setErrorMsg('');
 
     try {
-      const res = await fetch('http://127.0.0.1:5000/projects', {
+      const res = await fetch('https://connect-backend-8x61.onrender.com/projects', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

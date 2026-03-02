@@ -9,7 +9,7 @@ function ProjectCard({ project }) {
 
   useEffect(() => {
     if (user) {
-      fetch(`http://127.0.0.1:5000/volunteers/check?user_id=${user.id}&event_id=${project.id}`)
+      fetch(`https://connect-backend-8x61.onrender.com/volunteers/check?user_id=${user.id}&event_id=${project.id}`)
         .then(res => res.json())
         .then(data => setVolunteered(data.volunteered));
     }
@@ -19,7 +19,7 @@ function ProjectCard({ project }) {
     if (!user) return navigate("/login");
     
     const method = volunteered ? "DELETE" : "POST";
-    fetch("http://127.0.0.1:5000/volunteers" + (volunteered ? `?user_id=${user.id}&event_id=${project.id}` : ""), {
+    fetch("https://connect-backend-8x61.onrender.com/volunteers" + (volunteered ? `?user_id=${user.id}&event_id=${project.id}` : ""), {
       method,
       headers: { "Content-Type": "application/json" },
       body: !volunteered ? JSON.stringify({ user_id: user.id, event_id: project.id,email:user.email }) : null,

@@ -18,7 +18,7 @@ function VolunteerPage() {
     projects.forEach(async (project) => {
       try {
         const res = await fetch(
-          `http://127.0.0.1:5000/volunteers/check?user_id=${user.id}&event_id=${project.id}`
+          `https://connect-backend-8x61.onrender.com/volunteers/check?user_id=${user.id}&event_id=${project.id}`
         );
         const data = await res.json();
         setVolunteerStatus((prev) => ({ ...prev, [project.id]: data.volunteered }));
@@ -44,7 +44,7 @@ function VolunteerPage() {
     try {
       if (volunteerStatus[project.id]) {
         const res = await fetch(
-          `http://127.0.0.1:5000/volunteers?user_id=${user.id}&event_id=${project.id}`,
+          `https://connect-backend-8x61.onrender.com/volunteers?user_id=${user.id}&event_id=${project.id}`,
           { method: 'DELETE' }
         );
         if (res.ok) {
@@ -55,7 +55,7 @@ function VolunteerPage() {
           showMessage(data.error || 'Failed to unvolunteer.', 'error');
         }
       } else {
-        const res = await fetch('http://127.0.0.1:5000/volunteers', {
+        const res = await fetch('https://connect-backend-8x61.onrender.com/volunteers', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
