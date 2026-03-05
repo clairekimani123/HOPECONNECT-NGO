@@ -1,13 +1,13 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, GoogleAuthProvider, onAuthStateChanged, getIdToken } from "firebase/auth";
 const firebaseConfig = {
-  apiKey: "AIzaSyBOW7-VcOa4hjDD-3m__kcNXF47thzhDAI", 
-  authDomain: "hope-connect-5e7e3.firebaseapp.com",     
-  projectId: "hope-connect-5e7e3",
-  storageBucket: "hope-connect-5e7e3.appspot.com", 
-  messagingSenderId: "250806047336",
-  appId: "1:250806047336:web:a50a6883921230a510a1dd",
-  measurementId: "G-WNWB1R9JT9"
+ apiKey: "AIzaSyD8DSp_J0kPxGfpxWls3cRQDbmcOPaJZTs",
+  authDomain: "hopeconnect-ngo.firebaseapp.com",
+  projectId: "hopeconnect-ngo",
+  storageBucket: "hopeconnect-ngo.firebasestorage.app",
+  messagingSenderId: "737226343288",
+  appId: "1:737226343288:web:94cde2b445d6a8d2dcbe8d",
+  measurementId: "G-6NPJQHCZDW"
 };
 
 const app = initializeApp(firebaseConfig);
