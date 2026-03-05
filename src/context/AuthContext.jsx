@@ -8,51 +8,54 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);   
   const [token, setToken] = useState(null); 
   const [isLoading, setIsLoading] = useState(true);
-  useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      if (firebaseUser) {
-        try {
-          const res = await fetch("https://connect-backend-8x61.onrender.com/auth/firebase-login", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ email: firebaseUser.email }),
-          });
+// Replace your onAuthStateChanged useEffect with this:
+useEffect(() => {
+  const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (firebaseUser) {
+      try {
+        const res = await fetch("https://connect-backend-8x61.onrender.com/auth/firebase-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email: firebaseUser.email }),
+        });
 
-          if (!res.ok) {
-            throw new Error("Backend login failed");
-          }
+        if (!res.ok) throw new Error("Backend login failed");
 
-          const data = await res.json();
+        const data = await res.json();
+        const userData = {
+          email: firebaseUser.email,
+          id: data.id,
+          role: data.role,
+          access_token: data.access_token
+        };
 
-          setToken(data.access_token);
-          setUser({
-            email: firebaseUser.email,
-            id: data.id,
-            role: data.role,
-            access_token:data.access_token
-          });
-          localStorage.setItem("user", JSON.stringify({
-            email: firebaseUser.email,
-            id: data.id,
-            role: data.role,
-            access_token:data.access_token
-          }))
+        setToken(data.access_token);
+        setUser(userData);
+        localStorage.setItem("user", JSON.stringify(userData));
+        localStorage.setItem("access_token", data.access_token);
 
-        } catch (err) {
-          console.error("Backend login failed:", err);
-          setUser(null);
-          setToken(null);
-        }
+      } catch (err) {
+        console.error("Backend login failed:", err);
+        setUser(null);
+        setToken(null);
+      }
+    } else {
+      // ✅ KEY FIX: Don't wipe user if they logged in via email/password
+      const savedUser = localStorage.getItem("user");
+      const savedToken = localStorage.getItem("access_token");
+      if (savedUser && savedToken) {
+        setUser(JSON.parse(savedUser));
+        setToken(savedToken);
       } else {
         setUser(null);
         setToken(null);
       }
-      setIsLoading(false);
-    });
+    }
+    setIsLoading(false);
+  });
 
-    return () => unsubscribe();
-  }, []);
-
+  return () => unsubscribe();
+}, []);
  
 
   const loginWithGoogle = async () => {
