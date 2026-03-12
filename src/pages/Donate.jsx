@@ -13,7 +13,7 @@ const DonatePage = () => {
   const handleSubmit = (e) => {
     e.preventDefault();
     console.log("Form Submitted!", { donationType, recipientGroup, ...formData });
-    alert("Thank you for your generosity! (This is a demo)");
+    alert("Thank you for your generosity!");
   };
 
   return (
