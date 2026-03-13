@@ -1,6 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { trackEvent } from '../analytics'; // ✅ add at top
+
+// Inside handleVolunteer, after showMessage for success volunteer:
+
 
 function VolunteerPage() {
   const { projects, loadingProjects } = useOutletContext();
@@ -31,6 +35,7 @@ function VolunteerPage() {
   const showMessage = (text, type) => {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: '', type: '' }), 4000);
+    
   };
 
   const handleVolunteer = async (project) => {
@@ -67,6 +72,7 @@ function VolunteerPage() {
         if (res.ok) {
           setVolunteerStatus((prev) => ({ ...prev, [project.id]: true }));
           showMessage(`You signed up to volunteer for "${project.type}"! 🎉`, 'success');
+          trackEvent('Volunteer', volunteerStatus[project.id] ? 'Withdrew' : 'Signed Up', project.type); 
         } else {
           const data = await res.json();
           showMessage(data.error || 'Failed to volunteer.', 'error');

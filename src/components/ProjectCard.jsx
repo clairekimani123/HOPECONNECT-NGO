@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import React, { useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+import { trackEvent } from '../analytics'; // ✅
 
 function ProjectCard({ project }) {
   const { user } = useAuth();
@@ -16,15 +17,23 @@ function ProjectCard({ project }) {
   }, [user, project.id]);
 
   const handleClick = () => {
-    if (!user) return navigate("/login");
-    
-    const method = volunteered ? "DELETE" : "POST";
-    fetch("https://connect-backend-8x61.onrender.com/volunteers" + (volunteered ? `?user_id=${user.id}&event_id=${project.id}` : ""), {
+    if (!user) {
+      trackEvent('Volunteer', 'Login Required Click', project.type); // ✅
+      return navigate('/login');
+    }
+
+    const method = volunteered ? 'DELETE' : 'POST';
+    fetch('https://connect-backend-8x61.onrender.com/volunteers' + (volunteered ? `?user_id=${user.id}&event_id=${project.id}` : ''), {
       method,
-      headers: { "Content-Type": "application/json" },
-      body: !volunteered ? JSON.stringify({ user_id: user.id, event_id: project.id,email:user.email }) : null,
-    })
-      .then(res => res.ok && setVolunteered(!volunteered));
+      headers: { 'Content-Type': 'application/json' },
+      body: !volunteered ? JSON.stringify({ user_id: user.id, event_id: project.id, email: user.email }) : null,
+    }).then(res => {
+      if (res.ok) {
+        setVolunteered(!volunteered);
+        // ✅ track both volunteer and unvolunteer
+        trackEvent('Volunteer', volunteered ? 'Withdrew' : 'Signed Up', project.type);
+      }
+    });
   };
 
   return (
@@ -35,9 +44,14 @@ function ProjectCard({ project }) {
         <h4 className="text-md mb-3">Starting: {new Date(project.date).toLocaleDateString()}</h4>
         <p className="text-gray-600 mb-4">{project.description}</p>
         <div className="flex justify-center space-x-4">
-          <Link to="/donate" className="px-6 py-2 rounded-full bg-blue-700 text-white hover:bg-blue-800">Support</Link>
-          <button onClick={handleClick} className={`px-6 py-2 rounded-full text-white ${volunteered ? "bg-red-600" : "bg-blue-700"}`}>
-            {volunteered ? "Unvolunteer" : "Volunteer"}
+          {/* ✅ Track Support click */}
+          <Link to="/donate" onClick={() => trackEvent('Donation', 'Support Click', project.type)}
+            className="px-6 py-2 rounded-full bg-blue-700 text-white hover:bg-blue-800">
+            Support
+          </Link>
+          <button onClick={handleClick}
+            className={`px-6 py-2 rounded-full text-white ${volunteered ? 'bg-red-600' : 'bg-blue-700'}`}>
+            {volunteered ? 'Unvolunteer' : 'Volunteer'}
           </button>
         </div>
       </div>

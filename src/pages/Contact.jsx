@@ -1,5 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { trackEvent } from '../analytics'; 
+
+
+
 
 // Simple math CAPTCHA component
 const MathCaptcha = ({ onVerify }) => {
@@ -105,6 +109,7 @@ const ContactPage = () => {
     }
 
     setLoading(true);
+    trackEvent('Contact', 'Form Submitted', inquiryType); 
 
     // Build the full contact payload
     const payload = {
