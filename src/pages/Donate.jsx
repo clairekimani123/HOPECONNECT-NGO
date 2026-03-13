@@ -44,7 +44,7 @@ const DonatePage = () => {
   if (submitted) {
     return (
       <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 min-h-screen pt-20 flex items-center justify-center">
-        <div className="p-8 md:p-12 bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl shadow-xl text-center max-w-md w-full">
+        <div className="p-8 md:p-12 bg-white rounded-2xl shadow-xl text-center max-w-md w-full">
           <div className="text-6xl mb-6">🙏</div>
           <h2 className="text-3xl font-bold text-white mb-4">Thank You!</h2>
           <p className="text-white mb-2">Your generosity makes a real difference.</p>
