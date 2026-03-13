@@ -5,8 +5,8 @@ const DonatePage = () => {
   const [donationType, setDonationType] = useState('Money');
   const [recipientGroup, setRecipientGroup] = useState('Refugees');
   const [formData, setFormData] = useState({ amount: '', phone: '', description: '', name: '', email: '' });
-  const [submitted, setSubmitted] = useState(false); // ✅ tracks if form was submitted
-  const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false); // ✅ ADDED
+  const [loading, setLoading] = useState(false);     // ✅ ADDED
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -23,8 +23,8 @@ const DonatePage = () => {
     trackEvent('Donation', 'Recipient Selected', group);
   };
 
+  // ✅ ADDED — resets everything back to defaults
   const resetForm = () => {
-    // ✅ Resets everything back to defaults
     setFormData({ amount: '', phone: '', description: '', name: '', email: '' });
     setDonationType('Money');
     setRecipientGroup('Refugees');
@@ -35,30 +35,27 @@ const DonatePage = () => {
     e.preventDefault();
     setLoading(true);
     trackEvent('Donation', 'Form Submitted', `${donationType}-${recipientGroup}`);
-
-    // Simulate processing delay (replace with real API call later)
     await new Promise(resolve => setTimeout(resolve, 1500));
-
     setLoading(false);
-    setSubmitted(true); // ✅ show thank you screen
+    setSubmitted(true); // ✅ ADDED
   };
 
-  // ✅ THANK YOU SCREEN — shows after submission
+  // ✅ ADDED — thank you screen, same gradient as your background
   if (submitted) {
     return (
       <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 min-h-screen pt-20 flex items-center justify-center">
-        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center">
+        <div className="p-8 md:p-12 bg-white bg-opacity-20 backdrop-blur-sm rounded-2xl shadow-xl text-center max-w-md w-full">
           <div className="text-6xl mb-6">🙏</div>
-          <h2 className="text-3xl font-bold text-blue-600 mb-4">Thank You!</h2>
-          <p className="text-gray-600 mb-2">Your generosity makes a real difference.</p>
-          <p className="text-gray-500 text-sm mb-8">
+          <h2 className="text-3xl font-bold text-white mb-4">Thank You!</h2>
+          <p className="text-white mb-2">Your generosity makes a real difference.</p>
+          <p className="text-white text-sm mb-8 opacity-80">
             {donationType === 'Money'
               ? `KES ${formData.amount} donation for ${recipientGroup} has been received.`
               : `Your ${donationType} donation for ${recipientGroup} has been received.`}
           </p>
           <button
             onClick={resetForm}
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-full font-medium hover:from-blue-700 hover:to-purple-700 transition"
+            className="bg-white text-blue-600 px-8 py-3 rounded-full font-medium hover:bg-opacity-90 transition"
           >
             Make Another Donation
           </button>
@@ -75,7 +72,7 @@ const DonatePage = () => {
           <p className="text-lg text-gray-600 max-w-xl mx-auto">Your contribution, no matter the size, creates a world of difference.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-10 bg-white rounded-2xl shadow-2xl p-8">
+        <form onSubmit={handleSubmit} className="space-y-10 rounded-2xl shadow-2xl p-4">
           <div>
             <h2 className="text-xl font-semibold mb-4">1. Choose Donation Type</h2>
             <div className="flex flex-wrap gap-4">
