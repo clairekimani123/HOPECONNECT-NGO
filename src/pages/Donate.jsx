@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
-import { trackEvent } from '../analytics'; // ✅
+import { trackEvent } from '../analytics';
 
 const DonatePage = () => {
   const [donationType, setDonationType] = useState('Money');
   const [recipientGroup, setRecipientGroup] = useState('Refugees');
   const [formData, setFormData] = useState({ amount: '', phone: '', description: '', name: '', email: '' });
+  const [submitted, setSubmitted] = useState(false); // ✅ tracks if form was submitted
+  const [loading, setLoading] = useState(false);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -13,20 +15,57 @@ const DonatePage = () => {
 
   const handleDonationTypeChange = (type) => {
     setDonationType(type);
-    trackEvent('Donation', 'Type Selected', type); // ✅
+    trackEvent('Donation', 'Type Selected', type);
   };
 
   const handleRecipientChange = (group) => {
     setRecipientGroup(group);
-    trackEvent('Donation', 'Recipient Selected', group); // ✅
+    trackEvent('Donation', 'Recipient Selected', group);
   };
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    trackEvent('Donation', 'Form Submitted', `${donationType}-${recipientGroup}`); // ✅
-    console.log("Form Submitted!", { donationType, recipientGroup, ...formData });
-    alert("Thank you for your generosity!");
+  const resetForm = () => {
+    // ✅ Resets everything back to defaults
+    setFormData({ amount: '', phone: '', description: '', name: '', email: '' });
+    setDonationType('Money');
+    setRecipientGroup('Refugees');
+    setSubmitted(false);
   };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+    trackEvent('Donation', 'Form Submitted', `${donationType}-${recipientGroup}`);
+
+    // Simulate processing delay (replace with real API call later)
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    setLoading(false);
+    setSubmitted(true); // ✅ show thank you screen
+  };
+
+  // ✅ THANK YOU SCREEN — shows after submission
+  if (submitted) {
+    return (
+      <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 min-h-screen pt-20 flex items-center justify-center">
+        <div className="bg-white rounded-2xl shadow-2xl p-12 max-w-md w-full text-center">
+          <div className="text-6xl mb-6">🙏</div>
+          <h2 className="text-3xl font-bold text-blue-600 mb-4">Thank You!</h2>
+          <p className="text-gray-600 mb-2">Your generosity makes a real difference.</p>
+          <p className="text-gray-500 text-sm mb-8">
+            {donationType === 'Money'
+              ? `KES ${formData.amount} donation for ${recipientGroup} has been received.`
+              : `Your ${donationType} donation for ${recipientGroup} has been received.`}
+          </p>
+          <button
+            onClick={resetForm}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-full font-medium hover:from-blue-700 hover:to-purple-700 transition"
+          >
+            Make Another Donation
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 pt-20">
@@ -36,13 +75,13 @@ const DonatePage = () => {
           <p className="text-lg text-gray-600 max-w-xl mx-auto">Your contribution, no matter the size, creates a world of difference.</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-10 rounded-2xl shadow-2xl p-4">
+        <form onSubmit={handleSubmit} className="space-y-10 bg-white rounded-2xl shadow-2xl p-8">
           <div>
             <h2 className="text-xl font-semibold mb-4">1. Choose Donation Type</h2>
             <div className="flex flex-wrap gap-4">
               {['Money', 'Food', 'Clothes', 'Other'].map((type) => (
                 <button key={type} type="button"
-                  onClick={() => handleDonationTypeChange(type)} // ✅
+                  onClick={() => handleDonationTypeChange(type)}
                   className={`px-4 py-2 rounded-full border transition ${donationType === type ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>
                   {type}
                 </button>
@@ -55,7 +94,7 @@ const DonatePage = () => {
             <div className="flex flex-wrap gap-4">
               {['Refugees', 'Orphans', 'Street Families', 'War-affected'].map((group) => (
                 <button key={group} type="button"
-                  onClick={() => handleRecipientChange(group)} // ✅
+                  onClick={() => handleRecipientChange(group)}
                   className={`px-4 py-2 rounded-full border transition ${recipientGroup === group ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}>
                   {group}
                 </button>
@@ -84,7 +123,7 @@ const DonatePage = () => {
               <div>
                 <label htmlFor="description" className="block mb-2 font-medium">Describe your donation</label>
                 <textarea id="description" name="description" value={formData.description} onChange={handleInputChange}
-                  rows="3" placeholder='e.g., "Winter jackets, kids sizes"' required
+                  rows="3" placeholder='e.g., "De bon cœur"' required
                   className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring focus:ring-blue-200 focus:outline-none"></textarea>
               </div>
             )}
@@ -106,9 +145,16 @@ const DonatePage = () => {
             </div>
           </div>
 
-          <button type="submit"
-            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-full font-medium hover:from-blue-700 hover:to-purple-700 transition">
-            Proceed with Donation
+          <button type="submit" disabled={loading}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-3 rounded-full font-medium hover:from-blue-700 hover:to-purple-700 transition disabled:opacity-50 flex items-center gap-2">
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Processing...
+              </>
+            ) : (
+              'Proceed with Donation'
+            )}
           </button>
         </form>
       </section>
