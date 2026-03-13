@@ -41,28 +41,28 @@ const DonatePage = () => {
   };
 
   // ✅ ADDED — thank you screen, same gradient as your background
-  if (submitted) {
-    return (
-      <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 min-h-screen pt-20 flex items-center justify-center">
-        <div className="p-8 md:p-12 bg-white rounded-2xl shadow-xl text-center max-w-md w-full">
-          <div className="text-6xl mb-6">🙏</div>
-          <h2 className="text-3xl font-bold text-white mb-4">Thank You!</h2>
-          <p className="text-white mb-2">Your generosity makes a real difference.</p>
-          <p className="text-white text-sm mb-8 opacity-80">
-            {donationType === 'Money'
-              ? `KES ${formData.amount} donation for ${recipientGroup} has been received.`
-              : `Your ${donationType} donation for ${recipientGroup} has been received.`}
-          </p>
-          <button
-            onClick={resetForm}
-            className="bg-white text-blue-600 px-8 py-3 rounded-full font-medium hover:bg-opacity-90 transition"
-          >
-            Make Another Donation
-          </button>
-        </div>
+ if (submitted) {
+  return (
+    <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 min-h-screen pt-20 flex items-center justify-center">
+      <div className="p-8 md:p-12 bg-white rounded-2xl shadow-xl text-center max-w-md w-full">
+        <div className="text-6xl mb-6">🙏</div>
+        <h2 className="text-3xl font-bold text-blue-600 mb-4">Thank You!</h2>
+        <p className="text-gray-600 mb-2">Your generosity makes a real difference.</p>
+        <p className="text-gray-500 text-sm mb-8">
+          {donationType === 'Money'
+            ? `KES ${formData.amount} donation for ${recipientGroup} has been received.`
+            : `Your ${donationType} donation for ${recipientGroup} has been received.`}
+        </p>
+        <button
+          onClick={resetForm}
+          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-full font-medium hover:from-blue-700 hover:to-purple-700 transition"
+        >
+          Make Another Donation
+        </button>
       </div>
-    );
-  }
+    </div>
+  );
+}
 
   return (
     <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 pt-20">
