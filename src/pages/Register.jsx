@@ -1,222 +1,236 @@
-import React, { useState, useEffect } from 'react';
-import { useOutletContext } from 'react-router-dom';
-import ProjectCard from '../components/ProjectCard';
+import React, { useEffect, useState } from 'react';
+import { FaUser, FaEnvelope, FaLock, FaEye, FaEyeSlash, FaGoogle } from 'react-icons/fa';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-function ProjectsPage() {
-  const { projects, loadingProjects } = useOutletContext();
-  const { user } = useAuth();
+function RegisterPage() {
+  const [fName, setFName] = useState('');
+  const [lName, setLName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+  const {  loginWithGoogle, signInWithRedirect } = useAuth()
+  const navigate = useNavigate()
 
-  const [showModal, setShowModal] = useState(false);
-  const [submitLoading, setSubmitLoading] = useState(false);
-  const [successMsg, setSuccessMsg] = useState('');
-  const [errorMsg, setErrorMsg] = useState('');
-  const [projectList, setProjectList] = useState([]);
 
-  const token = localStorage.getItem('access_token');
 
-  const [form, setForm] = useState({
-    type: '',
-    description: '',
-    date: '',
-    image_url: '',
-  });
-
-  // Sync projectList when projects from context loads/updates
-  useEffect(() => {
-    if (!loadingProjects) {
-      setProjectList(projects);
-    }
-  }, [projects, loadingProjects]);
-
-  const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitLoading(true);
-    setErrorMsg('');
-
+    
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        const newUser = {
+            fName:fName,
+            lName: lName,
+            email: email,
+            password:password
+        }
+        
     try {
-      const res = await fetch('https://connect-backend-8x61.onrender.com/projects', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify(form),
-      });
+        const response = await fetch('https://hope-connect-backend-1-9syn.onrender.com/auth/register', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(newUser)
+        });
 
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.error || 'Failed to create project');
+      if (response.ok) {
+        const data = await response.json(); 
+        localStorage.setItem("user", data)
+        navigate("/login"); 
+      } else {
+          const errorData = await response.json();
+          setError(errorData.message || "Registration failed"); 
       }
-
-      const newProject = await res.json();
-      setProjectList((prev) => [...prev, newProject]);
-      setForm({ type: '', description: '', date: '', image_url: '' });
-      setSuccessMsg('Project added successfully! 🎉');
-      setTimeout(() => {
-        setSuccessMsg('');
-        setShowModal(false);
-      }, 2000);
-    } catch (err) {
-      setErrorMsg(err.message);
-    } finally {
-      setSubmitLoading(false);
+    } catch (error) {
+        setError(error)
+        console.error('Error creating account:', error);
     }
-  };
-
-  return (
-    <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 pt-20 min-h-screen">
-      <section className="py-16">
-        <div className="max-w-7xl mx-auto px-4 text-center">
-
-          {/* Header */}
-          <div className="relative mb-12">
-            <h1 className="text-4xl md:text-6xl font-bold mb-4 text-gray-900">
-              Our Impact in Action
-            </h1>
-            <p className="text-lg md:text-xl text-gray-600 max-w-3xl mx-auto">
-              See how your contributions are creating tangible change. Here are our current projects and upcoming events.
-            </p>
-
-            {/* Only visible to admins */}
-            {user?.role === 'admin' && (
-              <button
-                onClick={() => setShowModal(true)}
-                className="mt-6 inline-flex items-center gap-2 bg-white text-blue-700 font-semibold px-6 py-3 rounded-full shadow-md hover:bg-blue-700 hover:text-white transition-all duration-200"
-              >
-                <span className="text-xl font-bold">+</span> Add Project
-              </button>
-            )}
-          </div>
-
-          {/* Projects Grid */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-            {loadingProjects ? (
-              <div className="col-span-full flex flex-col items-center py-20 gap-4">
-                <div className="w-12 h-12 border-4 border-white border-t-transparent rounded-full animate-spin" />
-                <p className="text-white font-medium text-lg">Loading projects...</p>
-              </div>
-            ) : projectList.length > 0 ? (
-              projectList.map((project, index) => (
-                <ProjectCard key={index} project={project} />
-              ))
-            ) : (
-              <p className="text-white col-span-full text-lg">No projects found.</p>
-            )}
-          </div>
-
-        </div>
-      </section>
-
-      {/* Add Project Modal */}
-      {showModal && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg p-8 relative">
-
-            <button
-              onClick={() => { setShowModal(false); setErrorMsg(''); setSuccessMsg(''); }}
-              className="absolute top-4 right-4 text-gray-400 hover:text-gray-700 text-2xl font-bold"
-            >
-              ✕
-            </button>
-
-            <h2 className="text-2xl font-bold text-gray-800 mb-6">Add New Project</h2>
-
-            {successMsg && (
-              <div className="bg-green-50 border border-green-300 text-green-700 px-4 py-3 rounded-lg mb-4 text-center">
-                {successMsg}
-              </div>
-            )}
-            {errorMsg && (
-              <div className="bg-red-50 border border-red-300 text-red-600 px-4 py-3 rounded-lg mb-4 text-center">
-                {errorMsg}
-              </div>
-            )}
-
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Project Type / Name</label>
-                <input
-                  type="text"
-                  name="type"
-                  value={form.type}
-                  onChange={handleChange}
-                  placeholder="e.g. Health, Education"
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                <input
-                  type="url"
-                  name="image_url"
-                  value={form.image_url}
-                  onChange={handleChange}
-                  placeholder="https://example.com/image.jpg"
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-                {form.image_url && (
-                  <img
-                    src={form.image_url}
-                    alt="Preview"
-                    className="mt-2 h-32 w-full object-cover rounded-lg border"
-                    onError={(e) => (e.target.style.display = 'none')}
-                  />
-                )}
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                <textarea
-                  name="description"
-                  value={form.description}
-                  onChange={handleChange}
-                  placeholder="Describe the project..."
-                  rows={3}
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none resize-none"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-                <input
-                  type="date"
-                  name="date"
-                  value={form.date}
-                  onChange={handleChange}
-                  required
-                  className="w-full border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-400 focus:outline-none"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={submitLoading}
-                className="w-full bg-gradient-to-r from-blue-500 to-purple-600 text-white py-3 rounded-full font-semibold hover:opacity-90 transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {submitLoading ? (
-                  <>
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                    Adding Project...
-                  </>
-                ) : (
-                  'Add Project'
-                )}
-              </button>
-            </form>
-          </div>
-        </div>
-      )}
-    </div>
-  );
 }
 
-export default ProjectsPage;
+
+
+  const getPasswordStrength = (password) => {
+    let strength = 0;
+    if (password.length >= 8) strength++;
+    if (/[A-Z]/.test(password)) strength++;
+    if (/[a-z]/.test(password)) strength++;
+    if (/\d/.test(password)) strength++;
+    if (/[!@#$%^&*(),.?":{}|<>]/.test(password)) strength++;
+    
+    return strength;
+  };
+
+  const passwordStrength = getPasswordStrength(password);
+  const strengthLabels = ['Very Weak', 'Weak', 'Fair', 'Good', 'Strong'];
+  const strengthColors = ['bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-blue-500', 'bg-green-500'];
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-purple-600 p-4">
+      <div className="p-8 md:p-12 bg-white rounded-2xl shadow-xl text-center max-w-md w-full">
+        
+        <h1 className="font-serif text-3xl md:text-4xl text-blue-600 mb-2">
+          Join Hope Connect
+        </h1>
+
+        <p className="text-gray-600 mb-8">
+          Create your account to start your journey of giving.
+        </p>
+
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded-md mb-6 text-left">
+            {error}
+          </div>
+        )}
+
+        <div className="space-y-4 mb-6">
+          <div className="relative">
+            <FaUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              placeholder="First Name"
+              value={fName}
+              required
+              disabled={loading}
+              onChange={(e) => setFName(e.target.value)}
+              className="pl-10 pr-4 py-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+            <div className="relative">
+                <FaUser className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+                <input
+                type="text"
+                placeholder="Last Name"
+                value={lName}
+                required
+                disabled={loading}
+                onChange={(e) => setLName(e.target.value)}
+                className="pl-10 pr-4 py-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+                />
+            </div>
+
+          <div className="relative">
+            <FaEnvelope className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="email"
+              placeholder="Email Address"
+              value={email}
+              required
+              disabled={loading}
+              onChange={(e) => setEmail(e.target.value)}
+              className="pl-10 pr-4 py-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+          </div>
+
+          <div className="relative">
+            <FaLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type={showPassword ? "text" : "password"}
+              placeholder="Password"
+              value={password}
+              required
+              disabled={loading}
+              onChange={(e) => setPassword(e.target.value)}
+              className="pl-10 pr-12 py-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword(!showPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showPassword ? <FaEyeSlash className="w-4 h-4" /> : <FaEye className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {password && (
+            <div className="text-left">
+              <div className="flex items-center gap-2 mb-1">
+                <div className="flex-1 bg-gray-200 rounded-full h-2">
+                  <div 
+                    className={`h-2 rounded-full transition-all duration-300 ${strengthColors[passwordStrength - 1] || 'bg-gray-200'}`}
+                    style={{ width: `${(passwordStrength / 5) * 100}%` }}
+                  ></div>
+                </div>
+                <span className="text-sm text-gray-600">
+                  {strengthLabels[passwordStrength - 1] || 'Too Weak'}
+                </span>
+              </div>
+            </div>
+          )}
+
+          <div className="relative">
+            <FaLock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type={showConfirmPassword ? "text" : "password"}
+              placeholder="Confirm Password"
+              value={confirmPassword}
+              required
+              disabled={loading}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              className="pl-10 pr-12 py-3 border border-gray-300 rounded-md w-full focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:opacity-50 disabled:cursor-not-allowed"
+            />
+            <button
+              type="button"
+              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+            >
+              {showConfirmPassword ? <FaEyeSlash className="w-4 h-4" /> : <FaEye className="w-4 h-4" />}
+            </button>
+          </div>
+
+          {confirmPassword && password !== confirmPassword && (
+            <p className="text-red-500 text-sm text-left">Passwords do not match</p>
+          )}
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading}
+            className="bg-blue-600 text-white py-3 rounded-md hover:bg-blue-700 transition-colors w-full disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            {loading ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                Creating Account...
+              </>
+            ) : (
+              'Create Account'
+            )}
+          </button>
+        </div>
+
+        <div className="relative mb-6">
+          <div className="absolute inset-0 flex items-center">
+            <div className="w-full border-t border-gray-300"></div>
+          </div>
+          <div className="relative flex justify-center text-sm">
+            <span className="px-2 bg-white text-gray-500">Or continue with</span>
+          </div>
+        </div>
+
+        <button
+          onClick={loginWithGoogle}
+          disabled={loading}
+          className="flex items-center justify-center gap-3 bg-red-500 text-white py-3 px-6 rounded-md hover:bg-red-600 transition-colors w-full disabled:opacity-50 disabled:cursor-not-allowed mb-6"
+        >
+          <FaGoogle className="w-4 h-4" />
+          Sign Up with Google
+        </button>
+
+        <p className="text-gray-600 text-sm">
+          Already have an account?{' '}
+          <button 
+            onClick={() => navigate('/login')}
+            className="text-blue-600 hover:text-blue-900 font-medium"
+          >
+            Sign In
+          </button>
+        </p>
+      </div>
+    </div>
+  );
+};
+
+export default RegisterPage;
