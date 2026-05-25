@@ -1,7 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { auth, googleProvider, onAuthStateChanged } from "../../firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
-// ❌ REMOVE: import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
 
@@ -9,7 +8,6 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);   
   const [token, setToken] = useState(null); 
   const [isLoading, setIsLoading] = useState(true);
-  // ❌ REMOVE: const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -36,9 +34,8 @@ export const AuthProvider = ({ children }) => {
           localStorage.setItem("user", JSON.stringify(userData));
           localStorage.setItem("access_token", data.access_token);
 
-          // ✅ FIX: Use window.location instead of navigate()
-          console.log('🔄 Redirecting to landing page...');
-          window.location.href = '/';  // ← This works outside Router!
+          // ❌ REMOVED: window.location.href = '/';
+          // This was causing refreshes on every Firebase token update!
           
         } catch (err) {
           console.error("Backend login failed:", err);
@@ -60,13 +57,16 @@ export const AuthProvider = ({ children }) => {
     });
 
     return () => unsubscribe();
-  }, []); // ✅ Removed navigate from dependencies
+  }, []);
 
   const loginWithGoogle = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       console.log('✅ Google login successful:', result.user.email);
-      // Navigation happens in onAuthStateChanged above
+      
+      // ✅ Redirect ONLY after successful popup login
+      window.location.href = '/';
+      
     } catch (err) {
       console.error("Google login error:", err);
       if (err.code === 'auth/popup-closed-by-user') {
@@ -82,7 +82,6 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setToken(null);
       localStorage.clear();
-      // ✅ Also use window.location for logout
       window.location.href = '/';
     } catch (err) {
       console.error("Logout error:", err);
@@ -90,10 +89,8 @@ export const AuthProvider = ({ children }) => {
   };
 
   const value = {
-    user,
-    setUser,
-    token,
-    setToken,
+    user, setUser,
+    token, setToken,
     isLoading,
     loginWithGoogle,
     logout,
