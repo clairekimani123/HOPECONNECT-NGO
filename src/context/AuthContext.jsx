@@ -1,7 +1,7 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import { auth, googleProvider, onAuthStateChanged } from "../../firebase";
 import { signInWithPopup, signOut } from "firebase/auth";
-import { useNavigate } from "react-router-dom"; // ✅ Add this import
+// ❌ REMOVE: import { useNavigate } from "react-router-dom";
 
 const AuthContext = createContext();
 
@@ -9,7 +9,7 @@ export const AuthProvider = ({ children }) => {
   const [user, setUser] = useState(null);   
   const [token, setToken] = useState(null); 
   const [isLoading, setIsLoading] = useState(true);
-  const navigate = useNavigate(); // ✅ Add this
+  // ❌ REMOVE: const navigate = useNavigate();
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -36,8 +36,9 @@ export const AuthProvider = ({ children }) => {
           localStorage.setItem("user", JSON.stringify(userData));
           localStorage.setItem("access_token", data.access_token);
 
-          // ✅ ADD THIS: Navigate to landing page after successful login
-          navigate("/");
+          // ✅ FIX: Use window.location instead of navigate()
+          console.log('🔄 Redirecting to landing page...');
+          window.location.href = '/';  // ← This works outside Router!
           
         } catch (err) {
           console.error("Backend login failed:", err);
@@ -59,17 +60,16 @@ export const AuthProvider = ({ children }) => {
     });
 
     return () => unsubscribe();
-  }, [navigate]); // ✅ Add navigate to dependencies
+  }, []); // ✅ Removed navigate from dependencies
 
   const loginWithGoogle = async () => {
     try {
       const result = await signInWithPopup(auth, googleProvider);
       console.log('✅ Google login successful:', result.user.email);
-      // ✅ Navigation happens automatically in onAuthStateChanged above
+      // Navigation happens in onAuthStateChanged above
     } catch (err) {
       console.error("Google login error:", err);
       if (err.code === 'auth/popup-closed-by-user') {
-        // User closed popup - don't show error
         return;
       }
       alert('Google login failed. Please try again.');
@@ -82,7 +82,8 @@ export const AuthProvider = ({ children }) => {
       setUser(null);
       setToken(null);
       localStorage.clear();
-      navigate("/"); // ✅ Redirect to landing page after logout
+      // ✅ Also use window.location for logout
+      window.location.href = '/';
     } catch (err) {
       console.error("Logout error:", err);
     }
