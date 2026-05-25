@@ -15,14 +15,16 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import SuperAdminRoute from "./components/SuperadminRoute";
 
 const routes = [
+   {
+    path: "/register",
+    element: <RegisterPage />,
+  },
+  
   {
     path: "/login",
     element: <LoginPage />,
   },
-  {
-    path: "/register",
-    element: <RegisterPage />,
-  },
+ 
   {
     path: "/admin",
     element: (

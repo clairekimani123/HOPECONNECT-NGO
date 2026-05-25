@@ -19,15 +19,31 @@ function RegisterPage() {
 
 
     
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        const newUser = {
-            fName:fName,
-            lName: lName,
-            email: email,
-            password:password
-        }
-        
+ const handleSubmit = async (e) => {
+    e.preventDefault();
+    
+    // ✅ 1. Validate passwords match BEFORE submitting
+    if (password !== confirmPassword) {
+        setError("Passwords do not match");
+        return;
+    }
+    
+    // ✅ 2. Validate password strength (optional but recommended)
+    if (getPasswordStrength(password) < 3) {
+        setError("Password is too weak. Please use a stronger password.");
+        return;
+    }
+
+    const newUser = {
+        fName: fName,
+        lName: lName,
+        email: email,
+        password: password
+    };
+    
+    setLoading(true);
+    setError('');
+    
     try {
         const response = await fetch('https://connect-backend-8x61.onrender.com/auth/register', {
             method: 'POST',
@@ -37,19 +53,44 @@ function RegisterPage() {
             body: JSON.stringify(newUser)
         });
 
-      if (response.ok) {
         const data = await response.json(); 
-        localStorage.setItem("user", data)
-        navigate("/login"); 
-      } else {
-          const errorData = await response.json();
-          setError(errorData.message || "Registration failed"); 
-      }
+        console.log('Registration response:', data); // 🔍 Debug log
+
+        if (response.ok) {
+            // ✅ 3. Store user data as JSON string (not raw object!)
+            localStorage.setItem("user", JSON.stringify({
+                id: data.id,
+                email: data.email,
+                fName: data.first_name,
+                lName: data.last_name,
+                role: data.role
+            }));
+            
+            // ✅ 4. Clear form
+            setFName('');
+            setLName('');
+            setEmail('');
+            setPassword('');
+            setConfirmPassword('');
+            
+            // ✅ 5. Redirect to landing page (NOT login)
+            navigate("/"); 
+            
+            // Optional: Show success message
+            alert('✅ Account created successfully! Welcome to Hope Connect.');
+            
+        } else {
+            // ✅ 6. Handle backend errors properly
+            setError(data.msg || data.error || "Registration failed. Please try again.");
+        }
     } catch (error) {
-        setError(error)
         console.error('Error creating account:', error);
+        // ✅ 7. Extract readable error message
+        setError(error.message || "Network error. Please check your connection.");
+    } finally {
+        setLoading(false);
     }
-}
+};
 
 
 
