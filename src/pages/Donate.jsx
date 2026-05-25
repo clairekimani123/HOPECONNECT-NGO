@@ -32,13 +32,69 @@ const DonatePage = () => {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    trackEvent('Donation', 'Form Submitted', `${donationType}-${recipientGroup}`);
-    await new Promise(resolve => setTimeout(resolve, 1500));
+  e.preventDefault();
+  setLoading(true);
+  trackEvent('Donation', 'Form Submitted', `${donationType}-${recipientGroup}`);
+
+  try {
+    // 🔐 Get token from localStorage or auth context
+    const token = localStorage.getItem('access_token');
+    
+    // 📦 Prepare payload based on donation type
+    const payload = donationType === 'Money' 
+      ? {
+          phone_number: formData.phone,
+          amount: parseInt(formData.amount),
+          group: recipientGroup,
+          details: formData.description || 'HopeConnect Donation'
+        }
+      : {
+          type: donationType.toLowerCase(),
+          group: recipientGroup,
+          description: formData.description,
+          phone: formData.phone,
+          user_id: JSON.parse(localStorage.getItem('user'))?.id // optional
+        };
+
+    // 🎯 Choose endpoint based on type
+    const endpoint = donationType === 'Money' 
+      ? 'https://connect-backend-8x61.onrender.com/donations/mpesa/callback'
+      : 'https://connect-backend-8x61.onrender.com/donations';
+
+    // 📡 Make the API call
+    const response = await fetch(endpoint, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token && { 'Authorization': `Bearer ${token}` }) // ✅ Send JWT for M-Pesa
+      },
+      body: JSON.stringify(payload)
+    });
+
+    const data = await response.json();
+    console.log('✅ Backend response:', data);
+
+    if (!response.ok) {
+      throw new Error(data.msg || data.error || 'Donation failed');
+    }
+
+    // 🎉 Success!
+    trackEvent('Donation', 'Success', `${donationType}-${recipientGroup}`);
+    setSubmitted(true);
+
+    // 💡 For M-Pesa: Show helpful message about checking phone
+    if (donationType === 'Money' && data.checkout_request_id) {
+      alert('📱 STK Push sent! Check your phone to enter your M-Pesa PIN.');
+    }
+
+  } catch (error) {
+    console.error('❌ Donation error:', error);
+    trackEvent('Donation', 'Error', error.message);
+    alert(`Donation failed: ${error.message}`);
+  } finally {
     setLoading(false);
-    setSubmitted(true); // ✅ ADDED
-  };
+  }
+};
 
   // ✅ ADDED — thank you screen, same gradient as your background
  if (submitted) {
