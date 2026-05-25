@@ -58,7 +58,7 @@ const DonatePage = () => {
 
     // 🎯 Choose endpoint based on type
     const endpoint = donationType === 'Money' 
-      ? 'https://connect-backend-8x61.onrender.com/donations/mpesa/callback'
+      ? 'https://connect-backend-8x61.onrender.com/donations/mpesa'
       : 'https://connect-backend-8x61.onrender.com/donations';
 
     // 📡 Make the API call
