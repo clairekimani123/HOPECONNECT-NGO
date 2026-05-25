@@ -29,7 +29,7 @@ function RegisterPage() {
         }
         
     try {
-        const response = await fetch('https://hope-connect-backend-1-9syn.onrender.com/auth/register', {
+        const response = await fetch('https://connect-backend-8x61.onrender.com/auth/register', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
