@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import OrgImpactSummary from '../components/OrgImpactSummary'; // NEW
 
 function HomePage(){
   const navigate = useNavigate()
@@ -88,6 +89,9 @@ function HomePage(){
           </div>
         </div>
       </section>
+
+      {/* NEW — real, live transparency numbers, replacing/supplementing the static stats above */}
+      <OrgImpactSummary />
 
       <section className="py-20 bg-gradient-to-r from-blue-600 to-purple-600">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">

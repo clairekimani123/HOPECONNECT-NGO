@@ -2,11 +2,13 @@ import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { trackEvent } from '../analytics'; // ✅
+import TransparencyDashboard from './TransparencyDashboard'; // NEW
 
 function ProjectCard({ project }) {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [volunteered, setVolunteered] = useState(false);
+  const [showDashboard, setShowDashboard] = useState(false); // NEW
 
   useEffect(() => {
     if (user) {
@@ -54,6 +56,16 @@ function ProjectCard({ project }) {
             {volunteered ? 'Unvolunteer' : 'Volunteer'}
           </button>
         </div>
+
+        {/* NEW — transparency toggle */}
+        <button
+          onClick={() => setShowDashboard((v) => !v)}
+          className="mt-4 text-sm text-blue-600 hover:text-blue-800 font-medium underline self-center"
+        >
+          {showDashboard ? 'Hide' : 'See'} where the money goes
+        </button>
+
+        {showDashboard && <TransparencyDashboard projectId={project.id} />}
       </div>
     </div>
   );

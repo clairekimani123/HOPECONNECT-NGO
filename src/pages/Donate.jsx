@@ -1,12 +1,26 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { trackEvent } from '../analytics';
 
 const DonatePage = () => {
   const [donationType, setDonationType] = useState('Money');
   const [recipientGroup, setRecipientGroup] = useState('Refugees');
   const [formData, setFormData] = useState({ amount: '', phone: '', description: '', name: '', email: '' });
-  const [submitted, setSubmitted] = useState(false); // ✅ ADDED
-  const [loading, setLoading] = useState(false);     // ✅ ADDED
+  const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+
+  // NEW — project selection state
+  const [projects, setProjects] = useState([]);
+  const [projectId, setProjectId] = useState(''); // '' = general donation, not tied to a project
+  const [loadingProjects, setLoadingProjects] = useState(true);
+
+  // NEW — fetch the list of projects so the donor can pick which one to fund
+  useEffect(() => {
+    fetch('https://connect-backend-8x61.onrender.com/projects')
+      .then((res) => res.json())
+      .then((data) => setProjects(data))
+      .catch(() => setProjects([]))
+      .finally(() => setLoadingProjects(false));
+  }, []);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
@@ -23,102 +37,116 @@ const DonatePage = () => {
     trackEvent('Donation', 'Recipient Selected', group);
   };
 
-  // ✅ ADDED — resets everything back to defaults
+  // NEW — track which project a donor chose to fund
+  const handleProjectChange = (id) => {
+    setProjectId(id);
+    const project = projects.find((p) => p.id === Number(id));
+    trackEvent('Donation', 'Project Selected', project ? project.type : 'General');
+  };
+
   const resetForm = () => {
     setFormData({ amount: '', phone: '', description: '', name: '', email: '' });
     setDonationType('Money');
     setRecipientGroup('Refugees');
+    setProjectId(''); // NEW
     setSubmitted(false);
   };
 
   const handleSubmit = async (e) => {
-  e.preventDefault();
-  setLoading(true);
-  trackEvent('Donation', 'Form Submitted', `${donationType}-${recipientGroup}`);
+    e.preventDefault();
+    setLoading(true);
+    trackEvent('Donation', 'Form Submitted', `${donationType}-${recipientGroup}`);
 
-  try {
-    // 🔐 Get token from localStorage or auth context
-    const token = localStorage.getItem('access_token');
-    
-    // 📦 Prepare payload based on donation type
-    const payload = donationType === 'Money' 
-      ? {
-          phone_number: formData.phone,
-          amount: parseInt(formData.amount),
-          group: recipientGroup,
-          details: formData.description || 'HopeConnect Donation'
-        }
-      : {
-          type: donationType.toLowerCase(),
-          group: recipientGroup,
-          description: formData.description,
-          phone: formData.phone,
-          user_id: JSON.parse(localStorage.getItem('user'))?.id // optional
-        };
+    try {
+      const token = localStorage.getItem('access_token');
 
-    // 🎯 Choose endpoint based on type
-    const endpoint = donationType === 'Money' 
-      ? 'https://connect-backend-8x61.onrender.com/donations/mpesa'
-      : 'https://connect-backend-8x61.onrender.com/donations';
+      // NEW — project_id included in both payload branches.
+      // Sent as a number if a project was picked, or omitted entirely for
+      // a general donation not tied to any specific project.
+      const project_id = projectId ? Number(projectId) : undefined;
 
-    // 📡 Make the API call
-    const response = await fetch(endpoint, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token && { 'Authorization': `Bearer ${token}` }) // ✅ Send JWT for M-Pesa
-      },
-      body: JSON.stringify(payload)
-    });
+      const payload = donationType === 'Money'
+        ? {
+            phone_number: formData.phone,
+            amount: parseInt(formData.amount),
+            group: recipientGroup,
+            details: formData.description || 'HopeConnect Donation',
+            project_id, // NEW
+          }
+        : {
+            type: donationType.toLowerCase(),
+            group: recipientGroup,
+            description: formData.description,
+            phone: formData.phone,
+            user_id: JSON.parse(localStorage.getItem('user'))?.id,
+            project_id, // NEW
+          };
 
-    const data = await response.json();
-    console.log('✅ Backend response:', data);
+      const endpoint = donationType === 'Money'
+        ? 'https://connect-backend-8x61.onrender.com/donations/mpesa'
+        : 'https://connect-backend-8x61.onrender.com/donations';
 
-    if (!response.ok) {
-      throw new Error(data.msg || data.error || 'Donation failed');
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(token && { 'Authorization': `Bearer ${token}` })
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      console.log('✅ Backend response:', data);
+
+      if (!response.ok) {
+        throw new Error(data.msg || data.error || 'Donation failed');
+      }
+
+      trackEvent('Donation', 'Success', `${donationType}-${recipientGroup}`);
+      setSubmitted(true);
+
+      if (donationType === 'Money' && data.checkout_request_id) {
+        alert('📱 STK Push sent! Check your phone to enter your M-Pesa PIN.');
+      }
+
+    } catch (error) {
+      console.error('❌ Donation error:', error);
+      trackEvent('Donation', 'Error', error.message);
+      alert(`Donation failed: ${error.message}`);
+    } finally {
+      setLoading(false);
     }
+  };
 
-    // 🎉 Success!
-    trackEvent('Donation', 'Success', `${donationType}-${recipientGroup}`);
-    setSubmitted(true);
-
-    // 💡 For M-Pesa: Show helpful message about checking phone
-    if (donationType === 'Money' && data.checkout_request_id) {
-      alert('📱 STK Push sent! Check your phone to enter your M-Pesa PIN.');
-    }
-
-  } catch (error) {
-    console.error('❌ Donation error:', error);
-    trackEvent('Donation', 'Error', error.message);
-    alert(`Donation failed: ${error.message}`);
-  } finally {
-    setLoading(false);
-  }
-};
-
-  // ✅ ADDED — thank you screen, same gradient as your background
- if (submitted) {
-  return (
-    <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 min-h-screen pt-20 flex items-center justify-center">
-      <div className="p-8 md:p-12 bg-white rounded-2xl shadow-xl text-center max-w-md w-full">
-        <div className="text-6xl mb-6">🙏</div>
-        <h2 className="text-3xl font-bold text-blue-600 mb-4">Thank You!</h2>
-        <p className="text-gray-600 mb-2">Your generosity makes a real difference.</p>
-        <p className="text-gray-500 text-sm mb-8">
-          {donationType === 'Money'
-            ? `KES ${formData.amount} donation for ${recipientGroup} has been received.`
-            : `Your ${donationType} donation for ${recipientGroup} has been received.`}
-        </p>
-        <button
-          onClick={resetForm}
-          className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-full font-medium hover:from-blue-700 hover:to-purple-700 transition"
-        >
-          Make Another Donation
-        </button>
+  if (submitted) {
+    const selectedProject = projects.find((p) => p.id === Number(projectId));
+    return (
+      <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 min-h-screen pt-20 flex items-center justify-center">
+        <div className="p-8 md:p-12 bg-white rounded-2xl shadow-xl text-center max-w-md w-full">
+          <div className="text-6xl mb-6">🙏</div>
+          <h2 className="text-3xl font-bold text-blue-600 mb-4">Thank You!</h2>
+          <p className="text-gray-600 mb-2">Your generosity makes a real difference.</p>
+          <p className="text-gray-500 text-sm mb-2">
+            {donationType === 'Money'
+              ? `KES ${formData.amount} donation for ${recipientGroup} has been received.`
+              : `Your ${donationType} donation for ${recipientGroup} has been received.`}
+          </p>
+          {/* NEW — confirm which project, if one was chosen */}
+          {selectedProject && (
+            <p className="text-gray-500 text-sm mb-8">
+              This will go toward <span className="font-semibold">{selectedProject.type}</span>.
+            </p>
+          )}
+          <button
+            onClick={resetForm}
+            className="bg-gradient-to-r from-blue-600 to-purple-600 text-white px-8 py-3 rounded-full font-medium hover:from-blue-700 hover:to-purple-700 transition"
+          >
+            Make Another Donation
+          </button>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  }
 
   return (
     <div className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 pt-20">
@@ -129,8 +157,40 @@ const DonatePage = () => {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-10 rounded-2xl shadow-2xl p-4">
+
+          {/* NEW — project selector, step 1 in the flow since it frames everything after */}
           <div>
-            <h2 className="text-xl font-semibold mb-4">1. Choose Donation Type</h2>
+            <h2 className="text-xl font-semibold mb-4">1. Choose a Project (optional)</h2>
+            {loadingProjects ? (
+              <p className="text-sm text-gray-500">Loading projects...</p>
+            ) : (
+              <div className="flex flex-wrap gap-4">
+                <button
+                  type="button"
+                  onClick={() => handleProjectChange('')}
+                  className={`px-4 py-2 rounded-full border transition ${projectId === '' ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                >
+                  General Fund
+                </button>
+                {projects.map((project) => (
+                  <button
+                    key={project.id}
+                    type="button"
+                    onClick={() => handleProjectChange(project.id)}
+                    className={`px-4 py-2 rounded-full border transition ${Number(projectId) === project.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                  >
+                    {project.type}
+                  </button>
+                ))}
+              </div>
+            )}
+            <p className="text-xs text-gray-500 mt-2">
+              Choosing a project lets you track exactly how your donation is used on that project's transparency page.
+            </p>
+          </div>
+
+          <div>
+            <h2 className="text-xl font-semibold mb-4">2. Choose Donation Type</h2>
             <div className="flex flex-wrap gap-4">
               {['Money', 'Food', 'Clothes', 'Other'].map((type) => (
                 <button key={type} type="button"
@@ -143,7 +203,7 @@ const DonatePage = () => {
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold mb-4">2. Choose Recipient Group</h2>
+            <h2 className="text-xl font-semibold mb-4">3. Choose Recipient Group</h2>
             <div className="flex flex-wrap gap-4">
               {['Refugees', 'Orphans', 'Street Families', 'War-affected'].map((group) => (
                 <button key={group} type="button"
@@ -156,7 +216,7 @@ const DonatePage = () => {
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold mb-4">3. Donation Details</h2>
+            <h2 className="text-xl font-semibold mb-4">4. Donation Details</h2>
             {donationType === 'Money' ? (
               <div className="space-y-4">
                 <div>
@@ -183,7 +243,7 @@ const DonatePage = () => {
           </div>
 
           <div>
-            <h2 className="text-xl font-semibold mb-4">4. Your Details</h2>
+            <h2 className="text-xl font-semibold mb-4">5. Your Details</h2>
             <div className="mb-4">
               <label htmlFor="name" className="block mb-2 font-medium">Full Name</label>
               <input type="text" id="name" name="name" value={formData.name} onChange={handleInputChange}
