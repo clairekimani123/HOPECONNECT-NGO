@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 
 const CATEGORY_COLORS = {
   materials: 'bg-amber-500',
@@ -20,16 +20,27 @@ function TransparencyDashboard({ projectId }) {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const pollRef = useRef(null);
 
-  useEffect(() => {
+  const fetchDashboard = () => {
     fetch(`https://connect-backend-8x61.onrender.com/projects/${projectId}/dashboard`)
       .then((res) => {
         if (!res.ok) throw new Error('Could not load dashboard data');
         return res.json();
       })
-      .then((json) => setData(json))
+      .then((json) => { setData(json); setError(''); })
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchDashboard();
+
+    // Poll every 8s while this dashboard is open. This is what makes a
+    // donation that just got confirmed via M-Pesa actually show up here
+    // without the donor needing to manually refresh the whole page.
+    pollRef.current = setInterval(fetchDashboard, 8000);
+    return () => clearInterval(pollRef.current);
   }, [projectId]);
 
   if (loading) {
@@ -53,9 +64,14 @@ function TransparencyDashboard({ projectId }) {
 
   return (
     <div className="bg-white rounded-xl shadow-md p-6 mt-4">
-      <h3 className="text-lg font-bold text-gray-800 mb-4">Where the money goes</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold text-gray-800">Where the money goes</h3>
+        <span className="text-[10px] text-gray-400 flex items-center gap-1">
+          <span className="w-1.5 h-1.5 bg-green-500 rounded-full inline-block animate-pulse" />
+          Live
+        </span>
+      </div>
 
-      {/* Progress bar — only shown if a fundraising target was set */}
       {data.target > 0 && (
         <div className="mb-5">
           <div className="flex justify-between text-sm text-gray-600 mb-1">
@@ -63,15 +79,12 @@ function TransparencyDashboard({ projectId }) {
             <span>{data.percent_funded}% of {formatKES(data.target)} goal</span>
           </div>
           <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
-            <div
-              className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500"
-              style={{ width: `${data.percent_funded}%` }}
-            />
+            <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-3 rounded-full transition-all duration-500"
+              style={{ width: `${data.percent_funded}%` }} />
           </div>
         </div>
       )}
 
-      {/* Raised / Spent / Remaining summary */}
       <div className="grid grid-cols-3 gap-3 mb-5 text-center">
         <div className="bg-blue-50 rounded-lg py-3">
           <p className="text-xs text-gray-500 mb-1">Raised</p>
@@ -87,7 +100,6 @@ function TransparencyDashboard({ projectId }) {
         </div>
       </div>
 
-      {/* Expense breakdown by category */}
       {breakdownEntries.length > 0 ? (
         <div>
           <p className="text-xs font-semibold text-gray-500 uppercase mb-2">Spending breakdown</p>
@@ -101,10 +113,8 @@ function TransparencyDashboard({ projectId }) {
                     <span>{formatKES(amount)} ({pct}%)</span>
                   </div>
                   <div className="w-full bg-gray-100 rounded-full h-2 overflow-hidden">
-                    <div
-                      className={`${CATEGORY_COLORS[category] || CATEGORY_COLORS.other} h-2 rounded-full`}
-                      style={{ width: `${pct}%` }}
-                    />
+                    <div className={`${CATEGORY_COLORS[category] || CATEGORY_COLORS.other} h-2 rounded-full`}
+                      style={{ width: `${pct}%` }} />
                   </div>
                 </div>
               );
@@ -117,6 +127,11 @@ function TransparencyDashboard({ projectId }) {
 
       <p className="text-xs text-gray-400 text-center mt-4">
         {data.donor_count} {data.donor_count === 1 ? 'donor has' : 'donors have'} contributed to this project
+        {data.pending_donations > 0 && (
+          <span className="block mt-1 text-amber-500">
+            {data.pending_donations} payment{data.pending_donations > 1 ? 's' : ''} awaiting confirmation
+          </span>
+        )}
       </p>
     </div>
   );
