@@ -1,10 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useOutletContext, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { trackEvent } from '../analytics'; // ✅ add at top
-
-// Inside handleVolunteer, after showMessage for success volunteer:
-
+import { trackEvent } from '../analytics';
+import VolunteerSignupForm from '../components/VolunteerSignupForm'; // NEW
 
 function VolunteerPage() {
   const { projects, loadingProjects } = useOutletContext();
@@ -15,7 +13,9 @@ function VolunteerPage() {
   const [loadingId, setLoadingId] = useState(null);
   const [message, setMessage] = useState({ text: '', type: '' });
 
-  // Check volunteer status for all projects when user is logged in
+  // NEW — which project's signup modal is currently open, or null if none
+  const [activeProject, setActiveProject] = useState(null);
+
   useEffect(() => {
     if (!user || loadingProjects || projects.length === 0) return;
 
@@ -35,48 +35,39 @@ function VolunteerPage() {
   const showMessage = (text, type) => {
     setMessage({ text, type });
     setTimeout(() => setMessage({ text: '', type: '' }), 4000);
-    
   };
 
-  const handleVolunteer = async (project) => {
+  // NEW — opens the form modal, or sends to login if not signed in.
+  // This replaces the old direct POST-on-click for signing up.
+  const handleVolunteerClick = (project) => {
+    if (!user) {
+      navigate('/login');
+      return;
+    }
+    setActiveProject(project);
+  };
+
+  // Withdrawing is still a single action — there's no extra information
+  // needed to remove a signup, so this stays a direct click like before.
+  const handleWithdraw = async (project) => {
     if (!user) {
       navigate('/login');
       return;
     }
 
     setLoadingId(project.id);
-
     try {
-      if (volunteerStatus[project.id]) {
-        const res = await fetch(
-          `https://connect-backend-8x61.onrender.com/volunteers?user_id=${user.id}&event_id=${project.id}`,
-          { method: 'DELETE' }
-        );
-        if (res.ok) {
-          setVolunteerStatus((prev) => ({ ...prev, [project.id]: false }));
-          showMessage(`You have withdrawn from "${project.type}".`, 'info');
-        } else {
-          const data = await res.json();
-          showMessage(data.error || 'Failed to unvolunteer.', 'error');
-        }
+      const res = await fetch(
+        `https://connect-backend-8x61.onrender.com/volunteers?user_id=${user.id}&event_id=${project.id}`,
+        { method: 'DELETE' }
+      );
+      if (res.ok) {
+        setVolunteerStatus((prev) => ({ ...prev, [project.id]: false }));
+        showMessage(`You have withdrawn from "${project.type}".`, 'info');
+        trackEvent('Volunteer', 'Withdrew', project.type);
       } else {
-        const res = await fetch('https://connect-backend-8x61.onrender.com/volunteers', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            user_id: user.id,
-            event_id: project.id,
-            email: user.email,
-          }),
-        });
-        if (res.ok) {
-          setVolunteerStatus((prev) => ({ ...prev, [project.id]: true }));
-          showMessage(`You signed up to volunteer for "${project.type}"! 🎉`, 'success');
-          trackEvent('Volunteer', volunteerStatus[project.id] ? 'Withdrew' : 'Signed Up', project.type); 
-        } else {
-          const data = await res.json();
-          showMessage(data.error || 'Failed to volunteer.', 'error');
-        }
+        const data = await res.json();
+        showMessage(data.error || 'Failed to unvolunteer.', 'error');
       }
     } catch (err) {
       showMessage('Something went wrong. Please try again.', 'error');
@@ -85,9 +76,15 @@ function VolunteerPage() {
     }
   };
 
+  // NEW — called by the modal once the form successfully submits
+  const handleSignupSuccess = (project) => {
+    setVolunteerStatus((prev) => ({ ...prev, [project.id]: true }));
+    showMessage(`You signed up to volunteer for "${project.type}"! 🎉`, 'success');
+    setActiveProject(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 pt-20">
-      {/* Hero Section */}
       <section className="bg-gradient-to-br from-blue-500 to-purple-600 text-white py-20 px-4 text-center">
         <h1 className="text-4xl md:text-6xl font-bold mb-4">Volunteer With Us</h1>
         <p className="text-lg md:text-xl max-w-2xl mx-auto opacity-90">
@@ -96,10 +93,7 @@ function VolunteerPage() {
         {!user && (
           <div className="mt-6 inline-block bg-white bg-opacity-20 border border-white border-opacity-40 rounded-xl px-6 py-3 text-white text-sm">
             💡 Please{' '}
-            <button
-              onClick={() => navigate('/login')}
-              className="underline font-semibold hover:text-yellow-200"
-            >
+            <button onClick={() => navigate('/login')} className="underline font-semibold hover:text-yellow-200">
               sign in
             </button>{' '}
             to volunteer for a project
@@ -107,7 +101,6 @@ function VolunteerPage() {
         )}
       </section>
 
-      {/* Notification Message */}
       {message.text && (
         <div className={`max-w-3xl mx-auto mt-6 px-4 py-3 rounded-lg text-center font-medium transition-all ${
           message.type === 'success'
@@ -120,7 +113,6 @@ function VolunteerPage() {
         </div>
       )}
 
-      {/* Projects Grid */}
       <section className="max-w-7xl mx-auto px-4 py-16">
         <h2 className="text-3xl font-bold text-gray-800 text-center mb-12">
           Current Projects & Events
@@ -142,16 +134,10 @@ function VolunteerPage() {
               const isLoading = loadingId === project.id;
 
               return (
-                <div
-                  key={project.id}
-                  className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col"
-                >
+                <div key={project.id} className="bg-white rounded-2xl shadow-md hover:shadow-xl transition-shadow duration-300 overflow-hidden flex flex-col">
                   <div className="bg-gradient-to-r from-blue-500 to-purple-600 h-3" />
-
                   <div className="p-6 flex flex-col flex-1">
-                    <h3 className="text-xl font-bold text-gray-800 mb-2">
-                      {project.type}
-                    </h3>
+                    <h3 className="text-xl font-bold text-gray-800 mb-2">{project.type}</h3>
                     <p className="text-gray-500 text-sm flex-1 mb-6">
                       {project.description || 'Help us make an impact with this project.'}
                     </p>
@@ -164,7 +150,7 @@ function VolunteerPage() {
                     )}
 
                     <button
-                      onClick={() => handleVolunteer(project)}
+                      onClick={() => isVolunteered ? handleWithdraw(project) : handleVolunteerClick(project)}
                       disabled={isLoading}
                       className={`w-full py-3 rounded-xl font-semibold transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed
                         ${isVolunteered
@@ -192,6 +178,16 @@ function VolunteerPage() {
           </div>
         )}
       </section>
+
+      {/* NEW — signup form modal, shown when a project's volunteer button is clicked */}
+      {activeProject && (
+        <VolunteerSignupForm
+          project={activeProject}
+          user={user}
+          onClose={() => setActiveProject(null)}
+          onSuccess={() => handleSignupSuccess(activeProject)}
+        />
+      )}
     </div>
   );
 }
