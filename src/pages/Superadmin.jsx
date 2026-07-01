@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import SuperAdminNavbar from '../components/SuperAdminNavbar';
+import SuperadminNavbar from '../components/SuperadminNavbar';
 
 const BASE = 'https://connect-backend-8x61.onrender.com';
 
