@@ -84,7 +84,7 @@ export default function Superadmin() {
     { key: 'users',      label: 'Users',      count: users.length,      icon: '👥' },
     { key: 'projects',   label: 'Projects',   count: projects.length,   icon: '📋' },
     { key: 'donations',  label: 'Donations',  count: donations.length,  icon: '💰' },
-    { key: 'volunteers', label: 'Volunteers', count: volunteers.length, icon: '🤝' }, // NEW
+    { key: 'volunteers', label: 'Volunteers', count: volunteers.length, icon: '🤝' },
   ];
 
   if (loading) {
