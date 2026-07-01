@@ -1,257 +1,321 @@
-import React, { useState, useEffect } from 'react';
-import { FaUsers, FaCalendarAlt, FaDonate, FaTrash } from 'react-icons/fa';
-import SuperAdminNavbar from '../components/SuperadminNavbar';
+import React, { useEffect, useState } from 'react';
+import SuperAdminNavbar from '../components/SuperAdminNavbar';
 
-const SuperAdminPage = () => {
-  const user = JSON.parse(localStorage.getItem("user"));
-  const token = localStorage.getItem("access_token");
+const BASE = 'https://connect-backend-8x61.onrender.com';
 
-  const [activeTab, setActiveTab] = useState('users');
-  const [users, setUsers] = useState([]);
-  const [projects, setProjects] = useState([]);
-  const [donations, setDonations] = useState([]);
-  const [eventForm, setEventForm] = useState({ type: '', description: '', date: '', image_url: '' });
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [submitLoading, setSubmitLoading] = useState(false);
-
-  useEffect(() => { fetchData(); }, [activeTab]);
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      const endpoints = { users: '/users', projects: '/projects', donations: '/donations' };
-      const res = await fetch(`https://connect-backend-8x61.onrender.com${endpoints[activeTab]}`, {
-        headers: { 'Authorization': `Bearer ${token}` }
-      });
-      const data = await res.json();
-      if (activeTab === 'users') setUsers(data);
-      if (activeTab === 'projects') setProjects(data);
-      if (activeTab === 'donations') setDonations(data);
-    } catch {
-      setError('Failed to fetch data');
-    } finally {
-      setLoading(false);
-    }
+// ── Small reusable badge component ───────────────────────────────────────────
+// Think of this like a label sticker on a file folder — it tells you at a
+// glance what category or state something is in, using colour to convey
+// meaning without making you read carefully.
+const Badge = ({ value, color = 'gray' }) => {
+  const colors = {
+    gray:   'bg-gray-100 text-gray-600',
+    green:  'bg-green-100 text-green-700',
+    amber:  'bg-amber-100 text-amber-700',
+    red:    'bg-red-100 text-red-700',
+    blue:   'bg-blue-100 text-blue-700',
+    purple: 'bg-purple-100 text-purple-700',
   };
-
-  const handleDeleteEvent = async (id) => {
-    if (!window.confirm('Delete this event?')) return;
-    await fetch(`https://connect-backend-8x61.onrender.com/projects/${id}`, {
-      method: 'DELETE',
-      headers: { 'Authorization': `Bearer ${token}` }
-    });
-    setProjects(projects.filter(p => p.id !== id));
-  };
-
-  const handleEventSubmit = async (e) => {
-    e.preventDefault();
-    setSubmitLoading(true);
-    try {
-      await fetch('https://connect-backend-8x61.onrender.com/projects', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify(eventForm)
-      });
-      setEventForm({ type: '', description: '', date: '', image_url: '' });
-      fetchData();
-    } catch {
-      setError('Failed to create event');
-    } finally {
-      setSubmitLoading(false);
-    }
-  };
-
-  const TabButton = ({ tab, icon: Icon, count }) => (
-    <button
-      onClick={() => setActiveTab(tab)}
-      className={`px-5 py-2 rounded-full font-semibold transition-all ${
-        activeTab === tab
-          ? 'bg-white text-purple-700 shadow-md'
-          : 'bg-white/20 text-white hover:bg-white/30'
-      }`}
-    >
-      <Icon className="inline mr-2" />
-      {tab.charAt(0).toUpperCase() + tab.slice(1)} ({count})
-    </button>
+  return (
+    <span className={`text-xs font-semibold px-2 py-0.5 rounded-full ${colors[color] || colors.gray}`}>
+      {value}
+    </span>
   );
+};
 
-  if (!user || user.role !== 'admin') {
+// ── Status badge for donation — maps status string to a meaningful colour ────
+const StatusBadge = ({ status }) => {
+  const map = {
+    completed: { color: 'green',  label: 'Completed' },
+    pending:   { color: 'amber',  label: 'Pending' },
+    failed:    { color: 'red',    label: 'Failed' },
+  };
+  const { color, label } = map[status] || { color: 'gray', label: status || 'Unknown' };
+  return <Badge value={label} color={color} />;
+};
+
+// ── Availability badge for volunteers ────────────────────────────────────────
+const AvailabilityBadge = ({ value }) => {
+  if (!value) return <span className="text-gray-400 text-xs">Not specified</span>;
+  return <Badge value={value} color="purple" />;
+};
+
+export default function Superadmin() {
+  const [activeTab, setActiveTab] = useState('users');
+  const [users, setUsers]         = useState([]);
+  const [projects, setProjects]   = useState([]);
+  const [donations, setDonations] = useState([]);
+  const [volunteers, setVolunteers] = useState([]); // NEW
+  const [loading, setLoading]     = useState(true);
+  const [error, setError]         = useState('');
+
+  const token = localStorage.getItem('access_token');
+
+  useEffect(() => {
+    const headers = { Authorization: `Bearer ${token}` };
+
+    Promise.all([
+      fetch(`${BASE}/users`,      { headers }).then(r => r.json()),
+      fetch(`${BASE}/projects`,   { headers }).then(r => r.json()),
+      fetch(`${BASE}/donations`,  { headers }).then(r => r.json()),
+      fetch(`${BASE}/volunteers`, { headers }).then(r => r.json()), // NEW
+    ])
+      .then(([u, p, d, v]) => {
+        setUsers(Array.isArray(u) ? u : []);
+        setProjects(Array.isArray(p) ? p : []);
+        setDonations(Array.isArray(d) ? d : []);
+        setVolunteers(Array.isArray(v) ? v : []); // NEW
+      })
+      .catch(() => setError('Failed to load dashboard data.'))
+      .finally(() => setLoading(false));
+  }, [token]);
+
+  // Helper — look up a project name by id, used by the donations and
+  // volunteers tables to show the project type instead of a raw foreign key.
+  const projectName = (id) => {
+    if (!id) return <span className="text-gray-400">General Fund</span>;
+    const project = projects.find((p) => p.id === id);
+    return project ? project.type : <span className="text-gray-400">Unknown</span>;
+  };
+
+  // Tab config — single source of truth, so adding a new tab later is
+  // just one more entry here rather than changes scattered everywhere.
+  const tabs = [
+    { key: 'users',      label: 'Users',      count: users.length,      icon: '👥' },
+    { key: 'projects',   label: 'Projects',   count: projects.length,   icon: '📋' },
+    { key: 'donations',  label: 'Donations',  count: donations.length,  icon: '💰' },
+    { key: 'volunteers', label: 'Volunteers', count: volunteers.length, icon: '🤝' }, // NEW
+  ];
+
+  if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500">
-        <div className="text-center bg-white rounded-2xl p-10 shadow-xl">
-          <h1 className="text-2xl font-bold text-red-600">Access Denied</h1>
-          <p className="text-gray-500 mt-2">You don't have permission to view this page.</p>
+      <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
+        <SuperAdminNavbar />
+        <div className="flex justify-center items-center py-32">
+          <div className="animate-spin h-12 w-12 border-4 border-white border-t-transparent rounded-full" />
         </div>
       </div>
     );
   }
 
   return (
-    // ✅ Gradient background applied here
-    <div className="min-h-screen bg-gradient-to-br from-blue-600 via-purple-600 to-pink-500">
+    <div className="min-h-screen bg-gradient-to-br from-blue-500 via-purple-500 to-pink-500">
       <SuperAdminNavbar />
 
-      <div className="max-w-6xl mx-auto p-6">
-        {/* Page Title */}
-        <h1 className="text-3xl font-bold mb-6 text-white">Admin Dashboard</h1>
-
-        {/* Tab Buttons */}
-        <div className="flex gap-4 mb-6 flex-wrap">
-          <TabButton tab="users" icon={FaUsers} count={users.length} />
-          <TabButton tab="projects" icon={FaCalendarAlt} count={projects.length} />
-          <TabButton tab="donations" icon={FaDonate} count={donations.length} />
-        </div>
+      <div className="max-w-7xl mx-auto px-4 py-10">
+        <h1 className="text-3xl font-bold text-white mb-2">Admin Dashboard</h1>
+        <p className="text-white text-sm opacity-75 mb-8">
+          Full visibility across users, projects, donations, and volunteers.
+        </p>
 
         {error && (
-          <div className="text-red-100 bg-red-500/30 border border-red-300 px-4 py-3 rounded-lg mb-4">
+          <div className="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded-lg mb-6 text-sm">
             {error}
           </div>
         )}
 
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <div className="w-10 h-10 border-4 border-white border-t-transparent rounded-full animate-spin" />
-          </div>
-        ) : (
-          // ✅ Content card with frosted white background
-          <div className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-xl">
+        {/* Tab buttons ── */}
+        <div className="flex flex-wrap gap-3 mb-6">
+          {tabs.map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-semibold transition-all ${
+                activeTab === tab.key
+                  ? 'bg-white text-purple-700 shadow-lg'
+                  : 'bg-white/20 text-white hover:bg-white/30'
+              }`}
+            >
+              <span>{tab.icon}</span>
+              {tab.label}
+              <span className={`text-xs px-1.5 py-0.5 rounded-full font-bold ${
+                activeTab === tab.key ? 'bg-purple-100 text-purple-700' : 'bg-white/30 text-white'
+              }`}>
+                {tab.count}
+              </span>
+            </button>
+          ))}
+        </div>
 
-            {/* Users Tab */}
-            {activeTab === 'users' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                      <th className="px-4 py-3 text-left rounded-tl-lg">ID</th>
-                      <th className="px-4 py-3 text-left">Name</th>
-                      <th className="px-4 py-3 text-left">Email</th>
-                      <th className="px-4 py-3 text-left rounded-tr-lg">Role</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {users.map((u, i) => (
-                      <tr key={u.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-4 py-3">{u.id}</td>
-                        <td className="px-4 py-3">{u.first_name} {u.last_name}</td>
-                        <td className="px-4 py-3">{u.email}</td>
-                        <td className="px-4 py-3">
-                          <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                            u.role === 'admin'
-                              ? 'bg-purple-100 text-purple-700'
-                              : 'bg-blue-100 text-blue-700'
-                          }`}>
-                            {u.role}
-                          </span>
-                        </td>
-                      </tr>
+        {/* Table card ── */}
+        <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
+
+          {/* ── USERS ── */}
+          {activeTab === 'users' && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  <tr>
+                    {['ID', 'First Name', 'Last Name', 'Email', 'Role'].map((h) => (
+                      <th key={h} className="px-6 py-4 text-left font-semibold">{h}</th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
-
-            {/* Projects Tab */}
-            {activeTab === 'projects' && (
-              <>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                  {projects.map(p => (
-                    <div key={p.id} className="border border-gray-200 p-4 rounded-xl relative bg-white shadow-sm">
-                      <h3 className="font-bold text-gray-800">{p.type}</h3>
-                      <p className="text-gray-600 text-sm mt-1">{p.description}</p>
-                      <p className="text-xs text-gray-400 mt-2">{p.date}</p>
-                      <button
-                        onClick={() => handleDeleteEvent(p.id)}
-                        className="absolute top-3 right-3 text-red-400 hover:text-red-600 transition"
-                      >
-                        <FaTrash />
-                      </button>
-                    </div>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {users.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-10 text-gray-400">No users found.</td></tr>
+                  ) : users.map((u, i) => (
+                    <tr key={u.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-6 py-4 text-gray-500">{u.id}</td>
+                      <td className="px-6 py-4 font-medium">{u.first_name}</td>
+                      <td className="px-6 py-4">{u.last_name}</td>
+                      <td className="px-6 py-4 text-gray-600">{u.email}</td>
+                      <td className="px-6 py-4">
+                        <Badge value={u.role} color={u.role === 'admin' ? 'purple' : 'blue'} />
+                      </td>
+                    </tr>
                   ))}
-                </div>
+                </tbody>
+              </table>
+            </div>
+          )}
 
-                <form onSubmit={handleEventSubmit} className="space-y-4 border-t pt-6">
-                  <h3 className="font-bold text-gray-700 text-lg">Add New Project</h3>
-                  <input
-                    type="text"
-                    placeholder="Type (e.g. Health, Education)"
-                    value={eventForm.type}
-                    onChange={e => setEventForm({ ...eventForm, type: e.target.value })}
-                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-purple-400 focus:outline-none"
-                    required
-                  />
-                  <input
-                    type="text"
-                    placeholder="Image URL"
-                    value={eventForm.image_url}
-                    onChange={e => setEventForm({ ...eventForm, image_url: e.target.value })}
-                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-purple-400 focus:outline-none"
-                    required
-                  />
-                  <textarea
-                    placeholder="Description"
-                    value={eventForm.description}
-                    onChange={e => setEventForm({ ...eventForm, description: e.target.value })}
-                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-purple-400 focus:outline-none resize-none"
-                    rows={3}
-                    required
-                  />
-                  <input
-                    type="date"
-                    value={eventForm.date}
-                    onChange={e => setEventForm({ ...eventForm, date: e.target.value })}
-                    className="w-full border border-gray-300 p-3 rounded-lg focus:ring-2 focus:ring-purple-400 focus:outline-none"
-                    required
-                  />
-                  <button
-                    type="submit"
-                    disabled={submitLoading}
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white py-3 rounded-full font-semibold hover:opacity-90 transition disabled:opacity-50 flex items-center justify-center gap-2"
-                  >
-                    {submitLoading ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                        Posting...
-                      </>
-                    ) : 'Post Project'}
-                  </button>
-                </form>
-              </>
-            )}
-
-            {/* Donations Tab */}
-            {activeTab === 'donations' && (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
-                      <th className="px-4 py-3 text-left rounded-tl-lg">ID</th>
-                      <th className="px-4 py-3 text-left">Group</th>
-                      <th className="px-4 py-3 text-left">Type</th>
-                      <th className="px-4 py-3 text-left rounded-tr-lg">Details</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {donations.map((d, i) => (
-                      <tr key={d.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                        <td className="px-4 py-3">{d.id}</td>
-                        <td className="px-4 py-3">{d.group}</td>
-                        <td className="px-4 py-3 capitalize">{d.type}</td>
-                        <td className="px-4 py-3">
-                          {d.type === 'money' ? `KES ${d.amount}` : d.details}
-                        </td>
-                      </tr>
+          {/* ── PROJECTS ── */}
+          {activeTab === 'projects' && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  <tr>
+                    {['ID', 'Type', 'Date', 'Description', 'Target (KES)'].map((h) => (
+                      <th key={h} className="px-6 py-4 text-left font-semibold">{h}</th>
                     ))}
-                  </tbody>
-                </table>
-              </div>
-            )}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {projects.length === 0 ? (
+                    <tr><td colSpan={5} className="text-center py-10 text-gray-400">No projects found.</td></tr>
+                  ) : projects.map((p, i) => (
+                    <tr key={p.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-6 py-4 text-gray-500">{p.id}</td>
+                      <td className="px-6 py-4 font-medium">{p.type}</td>
+                      <td className="px-6 py-4 text-gray-500">{p.date}</td>
+                      <td className="px-6 py-4 text-gray-600 max-w-xs truncate">{p.description}</td>
+                      <td className="px-6 py-4">
+                        {p.target_amount
+                          ? <span className="font-semibold text-green-700">KES {p.target_amount.toLocaleString()}</span>
+                          : <span className="text-gray-400">Not set</span>}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
 
-          </div>
-        )}
+          {/* ── DONATIONS ──
+              CHANGED: renamed "Group" column to "Project" since group now
+              simply reflects the project type — showing "Nation Group" /
+              "Camera Group" as a separate concept was confusing and no
+              longer meaningful after the donation→project link was added.
+              ADDED: Status column so admin can see pending vs completed. */}
+          {activeTab === 'donations' && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  <tr>
+                    {['ID', 'Project', 'Type', 'Amount (KES)', 'Status', 'Date', 'Details'].map((h) => (
+                      <th key={h} className="px-6 py-4 text-left font-semibold">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {donations.length === 0 ? (
+                    <tr><td colSpan={7} className="text-center py-10 text-gray-400">No donations yet.</td></tr>
+                  ) : donations.map((d, i) => (
+                    <tr key={d.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-6 py-4 text-gray-500">{d.id}</td>
+                      {/* Project — uses the real project name from project_id if available,
+                          falls back to group for legacy donations that predated the link */}
+                      <td className="px-6 py-4 font-medium">
+                        {d.project_id
+                          ? <span className="text-blue-700 font-semibold">{projectName(d.project_id)}</span>
+                          : <span className="text-gray-400 text-xs">{d.group || 'General Fund'}</span>
+                        }
+                      </td>
+                      <td className="px-6 py-4">
+                        <Badge
+                          value={d.type}
+                          color={d.type === 'mpesa' ? 'green' : d.type === 'food' ? 'amber' : 'blue'}
+                        />
+                      </td>
+                      <td className="px-6 py-4 font-semibold text-gray-800">
+                        {d.amount ? `KES ${d.amount.toLocaleString()}` : '—'}
+                      </td>
+                      {/* NEW — status column, critical for tracking M-Pesa confirmation */}
+                      <td className="px-6 py-4">
+                        <StatusBadge status={d.status} />
+                      </td>
+                      <td className="px-6 py-4 text-gray-500 text-xs">
+                        {d.date ? new Date(d.date).toLocaleDateString('en-KE') : '—'}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 max-w-xs truncate">{d.details || '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* ── VOLUNTEERS ── NEW
+              Think of this table as the coordinator's clipboard — everything
+              they need to actually reach out to and organise volunteers,
+              not just a count of how many signed up. */}
+          {activeTab === 'volunteers' && (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gradient-to-r from-blue-600 to-purple-600 text-white">
+                  <tr>
+                    {['ID', 'Full Name', 'Email', 'Phone', 'Project', 'Availability', 'Skills', 'Signed Up'].map((h) => (
+                      <th key={h} className="px-6 py-4 text-left font-semibold">{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {volunteers.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="text-center py-10 text-gray-400">
+                        No volunteers yet.
+                      </td>
+                    </tr>
+                  ) : volunteers.map((v, i) => (
+                    <tr key={v.id} className={i % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                      <td className="px-6 py-4 text-gray-500">{v.id}</td>
+                      <td className="px-6 py-4 font-medium">
+                        {v.full_name && v.full_name !== 'Not provided'
+                          ? v.full_name
+                          : <span className="text-gray-400 text-xs">Not provided</span>}
+                      </td>
+                      <td className="px-6 py-4 text-gray-600">{v.email}</td>
+                      <td className="px-6 py-4">
+                        {v.phone_number && v.phone_number !== 'Not provided'
+                          ? <a href={`tel:${v.phone_number}`} className="text-blue-600 hover:underline">{v.phone_number}</a>
+                          : <span className="text-gray-400 text-xs">Not provided</span>}
+                      </td>
+                      <td className="px-6 py-4">
+                        <span className="font-semibold text-blue-700">
+                          {projectName(v.event_id)}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4">
+                        <AvailabilityBadge value={v.availability} />
+                      </td>
+                      <td className="px-6 py-4 text-gray-600 max-w-xs truncate">
+                        {v.skills || <span className="text-gray-400 text-xs">None listed</span>}
+                      </td>
+                      <td className="px-6 py-4 text-gray-500 text-xs">
+                        {v.created_at
+                          ? new Date(v.created_at).toLocaleDateString('en-KE')
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+        </div>
       </div>
     </div>
   );
-};
-
-export default SuperAdminPage;
+}
